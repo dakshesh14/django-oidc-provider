@@ -2,7 +2,7 @@
 
 A Django implementation of an OAuth2 and OpenID Connect (OIDC) Identity Provider, featuring token issuance, user authentication, and user info endpoints.
 
-https://github.com/user-attachments/assets/ca7f345b-1a28-478a-837d-4244728cde6b
+https://github.com/user-attachments/assets/35854c0b-6434-4f5e-a6d9-08b13ee7d287
 
 ## Setup
 
