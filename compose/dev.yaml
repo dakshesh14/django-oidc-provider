@@ -4,7 +4,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: dj-sso
+      POSTGRES_DB: dj-oidc-provider
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123
     ports:
