@@ -10,7 +10,7 @@ urlpatterns = [
 
 # API URLS
 urlpatterns += [
-    path("api/users/", include("django_sso.users.urls", namespace="users")),
+    path("", include("django_sso.users.urls", namespace="users")),
 ]
 
 if settings.DEBUG:

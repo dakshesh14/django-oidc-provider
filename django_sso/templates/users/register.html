@@ -31,7 +31,7 @@
         <button type="submit" class="btn btn-dark w-100">Register</button>
         <p class="mt-3 text-center">
           Already have an account?
-          <a href="{% url 'accounts:login' %}?next={{ request.GET.next|urlencode }}">Login</a>
+          <a href="{% url 'accounts:web:login' %}?next={{ request.GET.next|urlencode }}">Login</a>
         </p>
       </form>
     </div>
