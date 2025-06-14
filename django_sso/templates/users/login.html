@@ -20,7 +20,7 @@
         <button type="submit" class="btn btn-dark w-100">Login</button>
         <p class="mt-3 text-center">
           Don't have an account?
-          <a href="{% url 'accounts:register' %}?next={{ request.GET.next|urlencode }}">Register here</a>
+          <a href="{% url 'accounts:web:register' %}?next={{ request.GET.next|urlencode }}">Register here</a>
         </p>
       </form>
     </div>
