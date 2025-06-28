@@ -1,11 +1,15 @@
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 # django
 from django.contrib.auth.views import LoginView as DJLoginView
+from django.contrib.auth.views import PasswordResetCompleteView as DJPasswordResetCompleteView
+from django.contrib.auth.views import PasswordResetConfirmView as DJPasswordResetConfirmView
+from django.contrib.auth.views import PasswordResetDoneView as DJPasswordResetDoneView
+from django.contrib.auth.views import PasswordResetView as DJPasswordResetView
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -13,7 +17,7 @@ from django.views import View
 from django.views.generic.edit import FormView
 
 # form
-from django_sso.users.forms import RegisterForm
+from django_sso.users.forms import PasswordResetForm, RegisterForm
 
 # local
 # models
@@ -73,7 +77,7 @@ class RegisterView(FormView):
     def form_valid(self, form):
         form.save()
         next_url = self.request.POST.get("next", "")
-        login_url = reverse("accounts:login")
+        login_url = reverse("accounts:web:login")
         if next_url and url_has_allowed_host_and_scheme(next_url, self.request.get_host()):
             login_url += f"?next={next_url}"
         return redirect(login_url)
@@ -92,3 +96,25 @@ class RegisterView(FormView):
         kwargs = super().get_form_kwargs()
         kwargs.update({"files": self.request.FILES})
         return kwargs
+
+
+class PasswordResetView(DJPasswordResetView):
+    template_name = "users/password_reset_form.html"
+    email_template_name = "email/users/password_reset_email.html"
+    subject_template_name = "email/users/password_reset_subject.txt"
+    success_url = "/users/password-reset/done/"
+    form_class = PasswordResetForm
+
+
+class PasswordResetDoneView(DJPasswordResetDoneView):
+    template_name = "users/password_reset_done.html"
+
+
+class PasswordResetConfirmView(DJPasswordResetConfirmView):
+    template_name = "users/password_reset_confirm.html"
+    form_class = SetPasswordForm
+    success_url = "/users/reset/done/"
+
+
+class PasswordResetCompleteView(DJPasswordResetCompleteView):
+    template_name = "users/password_reset_complete.html"
