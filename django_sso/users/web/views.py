@@ -11,18 +11,23 @@ from django.contrib.auth.views import PasswordResetConfirmView as DJPasswordRese
 from django.contrib.auth.views import PasswordResetDoneView as DJPasswordResetDoneView
 from django.contrib.auth.views import PasswordResetView as DJPasswordResetView
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
+from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
+
+from django_sso.core.email.send_mail import send_mail
 
 # form
 from django_sso.users.forms import PasswordResetForm, RegisterForm
 
 # local
 # models
-from django_sso.users.models import Application
+from django_sso.users.models import Application, User
 from django_sso.users.utils.auth import create_and_cache_auth_code
+from django_sso.users.utils.email_verification import generate_email_verification_token, verify_email_token
 
 # utils
 from django_sso.utils.string import normalize_uri
@@ -75,12 +80,31 @@ class RegisterView(FormView):
     form_class = RegisterForm
 
     def form_valid(self, form):
-        form.save()
+        user = form.save(commit=False)
+        user.email_verified = False
+        user.save()
+
+        token = generate_email_verification_token(user.id)
+        self.send_verification_email(user, token)
+
         next_url = self.request.POST.get("next", "")
         login_url = reverse("accounts:web:login")
         if next_url and url_has_allowed_host_and_scheme(next_url, self.request.get_host()):
             login_url += f"?next={next_url}"
         return redirect(login_url)
+
+    def send_verification_email(self, user, token):
+        """Send email verification email"""
+        context = {
+            "user": user,
+            "token": token,
+            "domain": self.request.get_host(),
+            "protocol": "https" if self.request.is_secure() else "http",
+        }
+
+        subject = render_to_string("email/users/email_verification_subject.txt", context).strip()
+        body = render_to_string("email/users/email_verification_email.html", context)
+        send_mail.delay(subject, body, user.email)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -96,6 +120,64 @@ class RegisterView(FormView):
         kwargs = super().get_form_kwargs()
         kwargs.update({"files": self.request.FILES})
         return kwargs
+
+
+class EmailVerificationView(TemplateView):
+    template_name = "users/email_verification.html"
+
+    def get(self, request, *args, **kwargs):
+        token = kwargs.get("token")
+        return self.render_to_response(
+            {
+                "token": token,
+                "show_verification_form": True,
+            }
+        )
+
+    def post(self, request, *args, **kwargs):
+        token = kwargs.get("token")
+        user_id = verify_email_token(token)
+
+        if not token or not user_id:
+            return self.render_to_response({"success": False, "user": None})
+
+        try:
+            user = User.objects.get(id=user_id)
+            user.email_verified = True
+            user.save(update_fields=["email_verified"])
+
+            return self.render_to_response({"success": True, "user": user})
+        except User.DoesNotExist:
+            return self.render_to_response({"success": False, "user": None})
+
+
+class ResendVerificationView(LoginRequiredMixin, View):
+    login_url = "/users/login/"
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if not user.email_verified:
+            token = generate_email_verification_token(user.id)
+            self.send_verification_email(user, token)
+
+        return redirect("accounts:web:email_verification_sent")
+
+    def send_verification_email(self, user, token):
+        """Send email verification email"""
+        context = {
+            "user": user,
+            "token": token,
+            "domain": self.request.get_host(),
+            "protocol": "https" if self.request.is_secure() else "http",
+        }
+
+        subject = render_to_string("email/users/email_verification_subject.txt", context).strip()
+        body = render_to_string("email/users/email_verification_email.html", context)
+        send_mail.delay(subject, body, user.email)
+
+
+class EmailVerificationSentView(TemplateView):
+    template_name = "users/email_verification_sent.html"
 
 
 class PasswordResetView(DJPasswordResetView):

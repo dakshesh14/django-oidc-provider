@@ -143,6 +143,7 @@ class UserInfoView(APIView):
         data = {"sub": str(user.id)}
         if "email" in scopes:
             data["email"] = user.email
+            data["email_verified"] = user.email_verified
         if "profile" in scopes:
             data.update(
                 {
