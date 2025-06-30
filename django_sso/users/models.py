@@ -28,6 +28,8 @@ class User(BaseModel, AbstractUser):
         null=True,
     )
 
+    email_verified = models.BooleanField("Email verified", default=False)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
