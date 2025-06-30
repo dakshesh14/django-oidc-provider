@@ -1,0 +1,48 @@
+{% extends "core/base.html" %}
+
+{% block title %}
+  Email Verification - Django SSO
+{% endblock title %}
+{% block content %}
+  <div class="container d-flex justify-content-center align-items-center"
+       style="min-height: 100vh">
+    <div class="bg-light p-5 rounded shadow text-center"
+         style="min-width: 35rem">
+      {% if success %}
+        <div class="mb-4">
+          <i class="fas fa-check-circle fa-3x text-success"></i>
+        </div>
+        <h2>Email Verified Successfully!</h2>
+        <p class="text-muted">Your email address has been verified.</p>
+        <div class="alert alert-success">
+          <p class="mb-0">Welcome to Django SSO! Your account is now active and you can log in.</p>
+        </div>
+        <div class="mt-4">
+          <a href="{% url 'accounts:web:login' %}" class="btn btn-dark">Login Now</a>
+        </div>
+      {% elif show_verification_form %}
+        <div class="mb-4">
+          <i class="fas fa-envelope-open-text fa-3x text-primary"></i>
+        </div>
+        <h2>Confirm Email Verification</h2>
+        <p class="text-muted">Click the button below to verify your email address.</p>
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-dark mt-3">Verify My Email</button>
+        </form>
+      {% else %}
+        <div class="mb-4">
+          <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+        </div>
+        <h2>Verification Failed</h2>
+        <p class="text-muted">The verification link is invalid or has expired.</p>
+        <div class="alert alert-warning">
+          <p class="mb-0">Please check your email for a valid verification link or request a new one.</p>
+        </div>
+        <div class="mt-4">
+          <a href="{% url 'accounts:web:login' %}" class="btn btn-dark">Back to Login</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}
