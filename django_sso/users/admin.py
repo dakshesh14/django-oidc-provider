@@ -23,6 +23,7 @@ class UserAdmin(auth_admin.UserAdmin):
                 "fields": (
                     "first_name",
                     "last_name",
+                    "email_verified",
                 )
             },
         ),
