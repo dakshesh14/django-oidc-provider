@@ -60,3 +60,21 @@ class PasswordResetForm(DJPasswordResetForm):
         body = render_to_string(email_template_name, context)
 
         send_mail.delay(subject, body, to_email)
+
+
+class ResendVerificationForm(forms.Form):
+    email = forms.EmailField(
+        label=_("Email"),
+        max_length=254,
+        widget=forms.EmailInput(attrs={"autocomplete": "email"}),
+    )
+
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        try:
+            user = User.objects.get(email=email)
+            if user.email_verified:
+                raise forms.ValidationError(_("This email is already verified."))
+        except User.DoesNotExist:
+            raise forms.ValidationError(_("No user found with this email address."))
+        return email

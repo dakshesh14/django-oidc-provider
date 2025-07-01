@@ -21,7 +21,7 @@ from django.views.generic.edit import FormView
 from django_sso.core.email.send_mail import send_mail
 
 # form
-from django_sso.users.forms import PasswordResetForm, RegisterForm
+from django_sso.users.forms import PasswordResetForm, RegisterForm, ResendVerificationForm
 
 # local
 # models
@@ -151,16 +151,22 @@ class EmailVerificationView(TemplateView):
             return self.render_to_response({"success": False, "user": None})
 
 
-class ResendVerificationView(LoginRequiredMixin, View):
-    login_url = "/users/login/"
+class ResendVerificationView(FormView):
+    template_name = "users/resend_verification.html"
+    form_class = ResendVerificationForm
 
-    def post(self, request, *args, **kwargs):
-        user = request.user
+    def get_success_url(self):
+        return reverse("accounts:web:email_verification_sent")
+
+    def form_valid(self, form):
+        email = form.cleaned_data["email"]
+        user = User.objects.get(email=email)
+
         if not user.email_verified:
             token = generate_email_verification_token(user.id)
             self.send_verification_email(user, token)
 
-        return redirect("accounts:web:email_verification_sent")
+        return super().form_valid(form)
 
     def send_verification_email(self, user, token):
         """Send email verification email"""
@@ -174,6 +180,16 @@ class ResendVerificationView(LoginRequiredMixin, View):
         subject = render_to_string("email/users/email_verification_subject.txt", context).strip()
         body = render_to_string("email/users/email_verification_email.html", context)
         send_mail.delay(subject, body, user.email)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["next"] = self.request.GET.get("next", "")
+        return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["next"] = self.request.GET.get("next")
+        return initial
 
 
 class EmailVerificationSentView(TemplateView):
