@@ -14,6 +14,7 @@ from django.shortcuts import redirect
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.timezone import now
 from django.views import View
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
@@ -33,33 +34,136 @@ from django_sso.users.utils.email_verification import generate_email_verificatio
 from django_sso.utils.string import normalize_uri
 
 
-class AuthorizeView(LoginRequiredMixin, View):
-    login_url = "/users/login/"
-
+class AuthorizeView(View):
     def get(self, request, *args, **kwargs):
         client_id = request.GET.get("client_id")
         redirect_uri = request.GET.get("redirect_uri")
         state = request.GET.get("state", "")
         scope = request.GET.get("scope", "openid")
-        requested_scopes = scope.split()
+
+        if not client_id or not redirect_uri:
+            return self._error_redirect(redirect_uri, state, "invalid_request")
 
         client = Application.objects.filter(client_id=client_id, is_active=True).first()
         if not client:
-            return redirect("/error?error=invalid_client")
+            return self._error_redirect(redirect_uri, state, "invalid_client")
 
+        if normalize_uri(redirect_uri) not in client.get_redirect_uris():
+            return self._error_redirect(redirect_uri, state, "invalid_redirect_uri")
+
+        requested_scopes = scope.split()
         allowed_scopes = set(client.get_allowed_scopes())
         granted_scopes = [s for s in requested_scopes if s in allowed_scopes]
 
-        if normalize_uri(redirect_uri) not in client.get_redirect_uris():
-            return redirect("/error?error=invalid_redirect_uri")
-
         if not granted_scopes:
-            return redirect("/error?error=invalid_scope")
+            return self._error_redirect(redirect_uri, state, "invalid_scope")
 
-        auth_code = create_and_cache_auth_code(request.user, client, redirect_uri, granted_scopes)
+        request.session["oidc_context"] = {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "scope": granted_scopes,
+            "timestamp": now().isoformat(),
+        }
 
+        if not request.user.is_authenticated:
+            login_url = reverse("accounts:web:login")
+            query_params = {
+                "next": reverse("accounts:web:resume_authorization"),
+            }
+            login_url += f"?{urlencode(query_params)}"
+            return redirect(login_url)
+
+        return self._complete_authorization(request)
+
+    def _is_session_expired(self, context):
+        """Check if OIDC session context is expired (uses AUTH_CODE_TTL)"""
+        if not context or "timestamp" not in context:
+            return True
+
+        from datetime import datetime, timedelta
+
+        try:
+            timestamp = datetime.fromisoformat(context["timestamp"])
+            return now() > timestamp + timedelta(seconds=settings.AUTH_CODE_TTL)
+        except (ValueError, TypeError):
+            return True
+
+    def _complete_authorization(self, request):
+        context = request.session.pop("oidc_context", None)
+        if not context:
+            return redirect("/error?error=session_lost")
+
+        if self._is_session_expired(context):
+            return redirect("/error?error=session_expired")
+
+        client_id = context["client_id"]
+        redirect_uri = context["redirect_uri"]
+        state = context.get("state", "")
+        scope = context.get("scope", [])
+
+        client = Application.objects.filter(client_id=client_id, is_active=True).first()
+        if not client:
+            return self._error_redirect(redirect_uri, state, "invalid_client")
+
+        auth_code = create_and_cache_auth_code(request.user, client, redirect_uri, scope)
         query = urlencode({"code": auth_code, "state": state})
         return redirect(f"{redirect_uri}?{query}")
+
+    def _error_redirect(self, redirect_uri, state, error_code):
+        if redirect_uri:
+            try:
+                safe_redirect_uri = normalize_uri(redirect_uri)
+                if url_has_allowed_host_and_scheme(safe_redirect_uri, allowed_hosts=None):
+                    query = {"error": error_code}
+                    if state:
+                        query["state"] = state
+                    return redirect(f"{safe_redirect_uri}?{urlencode(query)}")
+            except Exception:
+                pass
+
+        return redirect(f"/error?error={error_code}")
+
+
+class ResumeAuthorizationView(LoginRequiredMixin, View):
+    login_url = "/users/login/"
+
+    def get(self, request, *args, **kwargs):
+        oidc_context = request.session.get("oidc_context", None)
+        if not oidc_context:
+            return redirect("/error?error=session_lost")
+
+        if self._is_session_expired(oidc_context):
+            request.session.pop("oidc_context", None)
+            return redirect("/error?error=session_expired")
+
+        client_id = oidc_context.get("client_id")
+        redirect_uri = oidc_context.get("redirect_uri")
+        state = oidc_context.get("state", "")
+        scope = oidc_context.get("scope", [])
+
+        authorizer_url = reverse("accounts:web:authorize")
+        query_params = {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "scope": " ".join(scope),
+        }
+        authorizer_url += f"?{urlencode(query_params)}"
+        return redirect(authorizer_url)
+
+    def _is_session_expired(self, context):
+        """Check if OIDC session context is expired (uses AUTH_CODE_TTL)"""
+        if not context or "timestamp" not in context:
+            return True
+
+        from datetime import datetime, timedelta
+
+        try:
+            timestamp = datetime.fromisoformat(context["timestamp"])
+            return now() > timestamp + timedelta(seconds=settings.AUTH_CODE_TTL)
+        except (ValueError, TypeError):
+            return True
 
 
 class LoginView(DJLoginView):
@@ -87,11 +191,11 @@ class RegisterView(FormView):
         token = generate_email_verification_token(user.id)
         self.send_verification_email(user, token)
 
-        next_url = self.request.POST.get("next", "")
-        login_url = reverse("accounts:web:login")
+        next_url = self.request.GET.get("next", "")
         if next_url and url_has_allowed_host_and_scheme(next_url, self.request.get_host()):
-            login_url += f"?next={next_url}"
-        return redirect(login_url)
+            return redirect(next_url)
+
+        return redirect(reverse("accounts:web:login"))
 
     def send_verification_email(self, user, token):
         """Send email verification email"""

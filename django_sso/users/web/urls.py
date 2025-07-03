@@ -11,6 +11,7 @@ from .views import (
     PasswordResetView,
     RegisterView,
     ResendVerificationView,
+    ResumeAuthorizationView,
 )
 
 app_name = "accounts"
@@ -19,6 +20,7 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("register/", RegisterView.as_view(), name="register"),
     path("authorize/", AuthorizeView.as_view(), name="authorize"),
+    path("resume-oidc/", ResumeAuthorizationView.as_view(), name="resume_authorization"),
     # email verification flow
     path("verify-email/<str:token>/", EmailVerificationView.as_view(), name="email_verification"),
     path("resend-verification/", ResendVerificationView.as_view(), name="resend_verification"),
