@@ -1,0 +1,6 @@
+site_name: Django SSO Provider Documentation
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Development: development.md

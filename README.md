@@ -1,111 +1,82 @@
-# Django-based OAuth2 and OpenID Connect (OIDC) Identity Provider
+# Django OIDC Provider
 
 A Django implementation of an OAuth2 and OpenID Connect (OIDC) Identity Provider, featuring token issuance, user authentication, and user info endpoints.
 
 https://github.com/user-attachments/assets/35854c0b-6434-4f5e-a6d9-08b13ee7d287
 
-## Setup
+## Features
 
-1. Clone the repository:
+- ✅ **OAuth2 Authorization Code Flow** - Complete implementation with PKCE support
+- ✅ **OpenID Connect** - User authentication and profile information
+- ✅ **JWT Access Tokens** - Secure token-based authentication
+- ✅ **Refresh Tokens** - Long-lived authentication sessions
+- ✅ **User Registration & Verification** - Email-based user onboarding
+- ✅ **Admin Interface** - Django admin for application management
+- ✅ **Background Tasks** - Celery integration for email sending
+- ✅ **Docker Support** - Containerized development environment
 
-```bash
-git clone https://github.com/dakshesh14/django-oidc-provider.git
-```
+## Quick Start
 
-2. Install dependencies:
-
-```bash
-pip install -r requirements/local.txt # for production -> requirements/production.txt
-```
-
-3. Configure pre-commit hooks:
-
-```bash
-pre-commit install
-```
-
-4. Environment Setup
-
-   1. Copy and update environment variables if you’re not using Docker Compose:
+1. **Clone the repository:**
 
    ```bash
-   cp .env.example .env
+   git clone https://github.com/<your_username>/django-oidc-provider.git
+   cd django-oidc-provider
    ```
 
-   2. Start services with Docker Compose (optional, but recommended):
+2. **Install dependencies:**
 
    ```bash
-   docker compose -f compose/dev.yaml up -d
+   pip install -r requirements/local.txt
    ```
 
-5. Apply database migrations:
+3. **Set up pre-commit hooks:**
 
-```bash
-python manage.py migrate
-```
+   ```bash
+   pre-commit install
+   ```
 
-6. Run the development server:
+4. **Follow the complete setup guide:** [Getting Started](docs/getting-started.md)
 
-```bash
-python manage.py runserver
-```
+## Documentation
 
-7. (Optional) Start Celery worker:
+- 📖 **[Getting Started](docs/getting-started.md)** - Complete installation and setup guide
+- 🔐 **[SSO Flow](docs/sso-flow.md)** - Understanding the OAuth2/OIDC authentication flow
+- 📱 **[Applications](docs/applications.md)** - How to create and manage OAuth2 applications
+- 🛠️ **[Development](docs/development.md)** - Development environment and workflow
+- 🚀 **[API Documentation](docs/api/endpoints.md)** - REST API endpoints and usage
+- 📋 **[Full Documentation](docs/index.md)** - Complete documentation index
 
-```bash
-celery -A config.celery_app worker -l info
-# for windows:
-celery -A config.celery_app worker -l info -P solo
-```
+## Standards Compliance
 
-## How to create applications
+This implementation follows:
 
-Currently, only public applications (suitable for SPAs) are supported.
+- [RFC 6749 - OAuth 2.0 Authorization Framework](https://datatracker.ietf.org/doc/html/rfc6749)
+- [RFC 6750 - OAuth 2.0 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)
+- [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)
 
-1. Create a superuser.
-2. Visit http://127.0.0.1:8000/admin.
-3. Under the "Users" section in the sidebar, go to "Applications".
-4. Click "Add Application".
-5. Fill in all the required details.
-6. Save the application.
-7. Copy the client secret immediately — it is hashed and stored, so you won’t be able to retrieve it later.
+## Contributing
 
-Once created, you can use the client ID and client secret in your projects. I might work on adding API docs and improving URL patterns.
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
 
-![add application page](https://github.com/user-attachments/assets/3fe50a59-742f-4d72-bfc6-0ff3575fc870)
+## Future Plans
 
-## Future plans
-
-Before using in production, I plan to work on:
-
-- [ ] Fix URL pattern to follow best practices
 - [ ] Add discovery endpoints
 - [ ] Add JWKS support
-- [ ] Improving error handling
+- [ ] Improve error handling
 - [ ] Add more application types
 
-# Contributing
+## License
 
-Contributions are welcome! Feel free to open issues or submit pull requests. Please open an issue first for major changes. You can also help by working on the tasks listed above.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgements
 
-This project would not be possible without the amazing open-source community and resources:
+Thanks to the amazing open-source community and the Django ecosystem that made this project possible.
 
-- [Django](https://www.djangoproject.com/)
-- [Django REST framework](https://www.django-rest-framework.org/)
-- [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749)
-- [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750)
-- [OpenID Connect Core Spec](https://openid.net/specs/openid-connect-core-1_0.html)
+---
 
-## Conclusion
+**Author:** [Dakshesh Jain](https://dakshesh.me)
+**Connect:** [LinkedIn](https://www.linkedin.com/in/dakshesh-jain/) • [Twitter](https://twitter.com/_dakshesh) • [GitHub](https://github.com/dakshesh14)
 
-This project can serve as a solid foundation (or even a ready solution) for building a production-ready Identity Provider. If you find it useful, please consider giving it a star!
-
-To connect or learn more about me, find me here:
-
-- [LinkedIn](https://www.linkedin.com/in/dakshesh-jain/)
-- [Twitter](https://twitter.com/_dakshesh)
-- [GitHub](https://github.com/dakshesh14)
-- [Reddit](https://www.reddit.com/user/_dakshesh/)
-- [Portfolio](https://dakshesh.me)
+_If you find this project useful, please consider giving it a star! ⭐_
