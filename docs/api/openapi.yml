@@ -1,0 +1,376 @@
+openapi: 3.0.3
+info:
+  title: Django OIDC Provider API
+  description: |
+    OAuth2 and OpenID Connect (OIDC) Identity Provider API
+
+    This API provides OAuth2/OIDC endpoints for authentication and user information retrieval.
+
+    ## Authentication Flow
+    1. Redirect user to `/users/authorize/` for authorization
+    2. Exchange authorization code for tokens at `/api/users/token/`
+    3. Use access token to access protected resources
+    4. Refresh tokens using `/api/users/token/refresh/`
+
+    ## Standards Compliance
+    - RFC 6749 - OAuth 2.0 Authorization Framework
+    - RFC 6750 - OAuth 2.0 Bearer Token Usage
+    - OpenID Connect Core 1.0
+  version: 1.0.0
+  contact:
+    name: Django OIDC Provider
+    url: https://github.com/dakshesh14/django-oidc-provider
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://your-domain.com
+    description: Production server
+
+paths:
+  /users/authorize/:
+    get:
+      summary: OAuth2 Authorization Endpoint
+      description: |
+        Initiates the OAuth2 authorization code flow. Redirects user to login if not authenticated,
+        then returns authorization code to the client's redirect URI.
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The client identifier
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+          description: The callback URI to redirect to after authorization
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "openid"
+          description: Space-separated list of scopes (e.g., "openid email profile")
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+          description: CSRF protection parameter
+        - name: response_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [code]
+            default: code
+          description: Must be "code" for authorization code flow
+      responses:
+        "302":
+          description: Redirect to client callback URI with authorization code or error
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: |
+                Success: {redirect_uri}?code={auth_code}&state={state}
+                Error: {redirect_uri}?error={error_code}&state={state}
+        "400":
+          description: Invalid request parameters
+      tags:
+        - OAuth2
+
+  /api/users/token/:
+    post:
+      summary: Token Exchange Endpoint
+      description: |
+        Exchanges an authorization code for access and refresh tokens.
+        This is part of the OAuth2 authorization code flow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - client_id
+                - client_secret
+                - code
+                - redirect_uri
+                - grant_type
+              properties:
+                client_id:
+                  type: string
+                  description: The client identifier
+                client_secret:
+                  type: string
+                  description: The client secret
+                code:
+                  type: string
+                  description: The authorization code received from /users/authorize/
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: The same redirect URI used in the authorization request
+                grant_type:
+                  type: string
+                  enum: [authorization_code]
+                  description: Must be "authorization_code"
+            example:
+              client_id: "your_client_id"
+              client_secret: "your_client_secret"
+              code: "auth_code_from_callback"
+              redirect_uri: "https://your-app.com/callback"
+              grant_type: "authorization_code"
+      responses:
+        "200":
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token
+                  token_type:
+                    type: string
+                    enum: [bearer]
+                    description: Token type (always "bearer")
+                  expires_in:
+                    type: integer
+                    description: Access token lifetime in seconds
+                  refresh_token:
+                    type: string
+                    description: Refresh token for obtaining new access tokens
+              example:
+                access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type: "bearer"
+                expires_in: 900
+                refresh_token: "random_refresh_token_string"
+        "400":
+          description: Invalid request or expired/invalid authorization code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                invalid_client:
+                  value:
+                    error: "invalid_client"
+                invalid_grant:
+                  value:
+                    error: "invalid_grant"
+                    error_description: "Invalid or expired authorization code"
+      tags:
+        - OAuth2
+
+  /api/users/token/refresh/:
+    post:
+      summary: Refresh Token Endpoint
+      description: |
+        Exchanges a refresh token for a new access token and refresh token.
+        The old refresh token is invalidated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: The refresh token
+            example:
+              refresh_token: "your_refresh_token"
+      responses:
+        "200":
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: New JWT access token
+                  token_type:
+                    type: string
+                    enum: [bearer]
+                  expires_in:
+                    type: integer
+                    description: Access token lifetime in seconds
+                  refresh_token:
+                    type: string
+                    description: New refresh token
+              example:
+                access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type: "bearer"
+                expires_in: 900
+                refresh_token: "new_refresh_token_string"
+        "400":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                invalid_grant:
+                  value:
+                    error: "invalid_grant"
+                    error_description: "Invalid or expired refresh token"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "user_not_found"
+      tags:
+        - OAuth2
+
+  /api/users/userinfo/:
+    get:
+      summary: User Info Endpoint
+      description: |
+        Returns user information based on the access token and granted scopes.
+        This is the OpenID Connect UserInfo endpoint.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sub:
+                    type: string
+                    description: Subject identifier (user ID)
+                  email:
+                    type: string
+                    format: email
+                    description: User's email address (if email scope granted)
+                  email_verified:
+                    type: boolean
+                    description: Whether email is verified (if email scope granted)
+                  name:
+                    type: string
+                    description: Username (if profile scope granted)
+                  given_name:
+                    type: string
+                    description: First name (if profile scope granted)
+                  family_name:
+                    type: string
+                    description: Last name (if profile scope granted)
+                  profile_picture:
+                    type: string
+                    format: uri
+                    nullable: true
+                    description: Profile picture URL (if profile scope granted)
+              example:
+                sub: "550e8400-e29b-41d4-a716-446655440000"
+                email: "user@example.com"
+                email_verified: true
+                name: "johndoe"
+                given_name: "John"
+                family_name: "Doe"
+                profile_picture: "https://example.com/avatar.jpg"
+        "401":
+          description: Invalid, expired, or missing access token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missing_token:
+                  value:
+                    error: "missing_token"
+                token_expired:
+                  value:
+                    error: "token_expired"
+                invalid_token:
+                  value:
+                    error: "invalid_token"
+                token_revoked:
+                  value:
+                    error: "token_revoked"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "user_not_found"
+      tags:
+        - OpenID Connect
+
+  /api/users/logout/:
+    post:
+      summary: Logout Endpoint
+      description: |
+        Revokes the provided access token by adding it to a blacklist.
+        The token will be invalid for future requests.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logout successful, token revoked
+        "400":
+          description: Invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missing_token:
+                  value:
+                    error: "missing_token"
+                invalid_token:
+                  value:
+                    error: "invalid_token"
+      tags:
+        - OAuth2
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from the token endpoint
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        error_description:
+          type: string
+          description: Human-readable error description
+      required:
+        - error
+      example:
+        error: "invalid_request"
+        error_description: "Missing required parameter"
+
+tags:
+  - name: OAuth2
+    description: OAuth2 authorization and token management endpoints
+  - name: OpenID Connect
+    description: OpenID Connect user information endpoints
