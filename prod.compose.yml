@@ -1,0 +1,55 @@
+services:
+  django:
+    build:
+      context: .
+      dockerfile: compose/production/django/Dockerfile
+    command: /start
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/vol/web/media
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+    depends_on:
+      - postgres
+      - redis
+
+  nginx:
+    image: nginx:1.25
+    ports:
+      - "80:80"
+    volumes:
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/vol/web/media:ro
+      - ./compose/production/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - django
+
+  postgres:
+    image: postgres:15
+    env_file:
+      - .envs/.production/.postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    env_file:
+      - .envs/.production/.redis
+
+  celery:
+    build:
+      context: .
+      dockerfile: compose/production/django/Dockerfile
+    command: celery -A config worker -l info
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+    depends_on:
+      - django
+      - redis
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

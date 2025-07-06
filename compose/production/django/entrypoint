@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+# Provide default if not set
+if [ -z "${POSTGRES_USER:-}" ]; then
+    export POSTGRES_USER="postgres"
+fi
+
+# Construct DATABASE_URL if not already set
+if [ -z "${DATABASE_URL:-}" ]; then
+    export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    echo "Constructed DATABASE_URL: ${DATABASE_URL}"
+fi
+
+# Wait for DB
+echo "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+wait-for-it "${POSTGRES_HOST}:${POSTGRES_PORT}" -t 30
+
+>&2 echo '✅ PostgreSQL is available'
+
+# Pass control to CMD (usually /start)
+exec "$@"
