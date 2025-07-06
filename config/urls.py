@@ -4,8 +4,11 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views import defaults as default_views
 
+from django_sso.core.views import health_check
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("health/", health_check, name="health_check"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # API URLS
