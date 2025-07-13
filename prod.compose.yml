@@ -3,16 +3,16 @@ services:
     build:
       context: .
       dockerfile: compose/production/django/Dockerfile
-    command: /start
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/vol/web/media
+    command: web
     env_file:
       - .envs/.production/.django
       - .envs/.production/.postgres
     depends_on:
       - postgres
       - redis
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/vol/web/media
 
   nginx:
     image: nginx:1.25
@@ -27,26 +27,44 @@ services:
 
   postgres:
     image: postgres:15
-    env_file:
-      - .envs/.production/.postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .envs/.production/.postgres
 
   redis:
     image: redis:7
-    env_file:
-      - .envs/.production/.redis
 
-  celery:
+  celeryworker:
     build:
       context: .
       dockerfile: compose/production/django/Dockerfile
-    command: celery -A config worker -l info
+    command: worker
     env_file:
       - .envs/.production/.django
       - .envs/.production/.postgres
     depends_on:
-      - django
+      - redis
+
+  celerybeat:
+    build:
+      context: .
+      dockerfile: compose/production/django/Dockerfile
+    command: beat
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+    depends_on:
+      - redis
+
+  flower:
+    build:
+      context: .
+      dockerfile: compose/production/django/Dockerfile
+    command: flower
+    env_file:
+      - .envs/.production/.django
+    depends_on:
       - redis
 
 volumes:

@@ -1,41 +1,54 @@
-FROM python:3.11-slim as base
+# define an alias for the specific python version used in this file.
+FROM docker.io/python:3.12.11-slim-bookworm AS python
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Python build stage
+FROM python AS python-build-stage
 
-ARG APP_HOME=/app
 ARG BUILD_ENVIRONMENT=production
 
+# Install apt packages
+RUN apt-get update && apt-get install --no-install-recommends -y \
+  build-essential \
+  libpq-dev
+
+COPY ./requirements .
+RUN pip wheel --wheel-dir /usr/src/app/wheels -r ${BUILD_ENVIRONMENT}.txt
+
+# Python 'run' stage
+FROM python AS python-run-stage
+
+ARG BUILD_ENVIRONMENT=production
+ARG APP_HOME=/app
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV BUILD_ENV=${BUILD_ENVIRONMENT}
 
 WORKDIR ${APP_HOME}
 
-# System deps
+RUN addgroup --system django \
+  && adduser --system --ingroup django django
+
+# Required system dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    gcc \
-    wait-for-it \
-    netcat-openbsd \
-    libpq-dev \
-    gettext \
+  libpq-dev \
+  gettext \
+  wait-for-it \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps early to leverage caching
-COPY ./requirements .
-RUN pip install --no-cache-dir -r ${BUILD_ENVIRONMENT}.txt
+COPY --from=python-build-stage /usr/src/app/wheels /wheels/
+RUN pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/* \
+  && rm -rf /wheels/
 
-# Create static/media dirs
-RUN mkdir -p /vol/web/static /vol/web/media \
-  && mkdir -p /app/staticfiles
-
-# Copy entrypoint/start scripts
-COPY ./compose/production/django/entrypoint /entrypoint
-RUN sed -i 's/\r$//g' /entrypoint && chmod +x /entrypoint
-
-COPY ./compose/production/django/start /start
-RUN sed -i 's/\r$//g' /start && chmod +x /start
+# Add start.sh script
+COPY --chown=django:django ./compose/production/django/start.sh /start.sh
+RUN sed -i 's/\r$//g' /start.sh && chmod +x /start.sh
 
 # Copy app code
-COPY . ${APP_HOME}
+COPY --chown=django:django . ${APP_HOME}
+RUN chown -R django:django ${APP_HOME}
 
-ENTRYPOINT ["/entrypoint"]
+USER django
+
+ENTRYPOINT ["/start.sh"]
