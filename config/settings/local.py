@@ -40,11 +40,6 @@ EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="admin@localhost")
 SERVER_EMAIL = env("SERVER_EMAIL", default="admin@localhost")
 
-# WhiteNoise
-# ------------------------------------------------------------------------------
-# http://whitenoise.evans.io/en/latest/django.html#using-whitenoise-in-development
-INSTALLED_APPS = ["whitenoise.runserver_nostatic"] + INSTALLED_APPS  # noqa: F405
-
 
 # Celery
 # ------------------------------------------------------------------------------
