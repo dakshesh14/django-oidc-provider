@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+
+echo "Collecting static files..."
+
+python /app/manage.py collectstatic --noinput
+
+exec /usr/local/bin/gunicorn config.wsgi --bind 0.0.0.0:8000 --chdir=/app
