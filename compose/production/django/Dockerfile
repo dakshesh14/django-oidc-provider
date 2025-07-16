@@ -55,6 +55,21 @@ RUN sed -i 's/\r$//g' /start.sh
 RUN chmod +x /start.sh
 
 
+COPY --chown=django:django ./compose/production/django/start-celerybeat.sh /start-celerybeat.sh
+RUN sed -i 's/\r$//g' /start-celerybeat.sh
+RUN chmod +x /start-celerybeat.sh
+
+
+COPY --chown=django:django ./compose/production/django/start-celeryworker.sh /start-celeryworker.sh
+RUN sed -i 's/\r$//g' /start-celeryworker.sh
+RUN chmod +x /start-celeryworker.sh
+
+
+COPY --chown=django:django ./compose/production/django/start-celeryflower.sh /start-celeryflower.sh
+RUN sed -i 's/\r$//g' /start-celeryflower.sh
+RUN chmod +x /start-celeryflower.sh
+
+
 COPY --chown=django:django . ${APP_HOME}
 
 RUN chown -R django:django ${APP_HOME}
