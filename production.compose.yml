@@ -4,8 +4,39 @@ services:
       context: .
       dockerfile: compose/production/django/Dockerfile
     image: django-oidc-provider__django_production
+    command: /start.sh
     depends_on:
       - postgres
+      - redis
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+
+  celeryworker:
+    image: django-oidc-provider__django_production
+    command: /start-celeryworker.sh
+    depends_on:
+      - django
+      - redis
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+
+  celerybeat:
+    image: django-oidc-provider__django_production
+    command: /start-celerybeat.sh
+    depends_on:
+      - django
+      - redis
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+
+  celeryflower:
+    image: django-oidc-provider__django_production
+    command: /start-celeryflower.sh
+    depends_on:
+      - django
       - redis
     env_file:
       - .envs/.production/.django
@@ -27,10 +58,12 @@ services:
     image: docker.io/nginx:1.25
     ports:
       - "80:80"
+      - "5555:5555"
     volumes:
       - ./compose/production/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - django
+      - celeryflower
 
 volumes:
   production_postgres_data:
