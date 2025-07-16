@@ -12,3 +12,4 @@ venv
 .envs/
 .env
 .env.example
+env/
