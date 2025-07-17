@@ -3,12 +3,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from django.views import defaults as default_views
+from django_sso.core.views import health_check
 
 from django_sso.users.api.views import DiscoveryView
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path(".well-known/openid-configuration", DiscoveryView.as_view(), name="oidc_discovery"),
+    path("health/", health_check, name="health_check"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # API URLS
