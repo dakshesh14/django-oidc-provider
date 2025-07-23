@@ -4,6 +4,7 @@ RENDER_SCRIPT=scripts/render_template.sh
 DEPLOYMENT_SCRIPT=scripts/deployment.sh
 MIGRATE_SCRIPT=scripts/migrate.sh
 SUPERUSER_SCRIPT=scripts/create_superuser.sh
+INIT_SSL_SCRIPT=scripts/init-letsencrypt.sh
 
 .DEFAULT_GOAL := help
 
@@ -14,8 +15,10 @@ help:
 	@echo "  init         Run the interactive init script using gum"
 	@echo "  init-plain   Run the plain init script (no gum)"
 	@echo "  render       Run template rendering directly"
+	@echo "  init-ssl     Initialize SSL certificates with Let's Encrypt"
 	@echo "  deploy       Deploy the application using Docker Compose"
 	@echo "  migrate      Run database migrations"
+	@echo "  create-superuser Create a Django superuser"
 	@echo ""
 
 
@@ -42,6 +45,10 @@ deploy:
 .PHONY: migrate
 migrate:
 	@bash $(MIGRATE_SCRIPT)
+
+.PHONY: init-ssl
+init-ssl:
+	@bash $(INIT_SSL_SCRIPT)
 
 .PHONY: create-superuser
 create-superuser:
