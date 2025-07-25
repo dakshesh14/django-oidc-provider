@@ -84,6 +84,9 @@ server {
 }
 EOF
 
+mkdir -p ./data/certbot/www/.well-known/acme-challenge
+echo "test" > ./data/certbot/www/.well-known/acme-challenge/test
+
 docker run --rm -d --name nginx-init \
   -p 80:80 \
   -v /tmp/nginx-init.conf:/etc/nginx/conf.d/default.conf:ro \

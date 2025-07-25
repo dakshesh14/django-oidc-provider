@@ -2,6 +2,10 @@
 
 set -e
 
+# TODO:
+# - [ ] Add question to confirm if user wants to overwrite existing .envs/* if they already exist
+# - [ ] Give option to skip certain sections (e.g., if they already have AWS credentials set up)
+
 # ------------------------------------------------------------------------------
 #  PRECHECK
 # ------------------------------------------------------------------------------
@@ -26,6 +30,10 @@ generate_secret() {
 generate_password() {
   openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 40
 }
+
+mkdir -p .envs/.production/.django
+mkdir -p .envs/.production/.postgres
+mkdir -p .envs/.production/.core
 
 # ------------------------------------------------------------------------------
 #  AUTO-GENERATED VALUES
