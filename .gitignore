@@ -78,3 +78,4 @@ dmypy.json
 cython_debug/
 .env
 .envs/*
+data/
