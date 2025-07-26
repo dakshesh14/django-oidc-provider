@@ -82,7 +82,7 @@ class TokenView(APIView):
         if pkce_error:
             return pkce_error
 
-        # code_data["used"] = True
+        code_data["used"] = True
         cache.set(f"auth_code:{code}", json.dumps(code_data), timeout=60)
 
         user = User.objects.get(id=code_data["user_id"])
@@ -164,7 +164,7 @@ class TokenView(APIView):
                 "user_id": str(user.id),
                 "client_id": client.client_id,
                 "scopes": code_data["scopes"],
-                "exp": now() + settings.SSO.get("ACCESS_TOKEN_EXPIRATION"),
+                "exp": now() + settings.SSO.get("REFRESH_TOKEN_EXPIRATION"),
             },
             timeout=timeout,
         )
@@ -344,7 +344,7 @@ class DiscoveryView(APIView):
                 "authorization_endpoint": base + reverse("accounts:web:authorize"),
                 "token_endpoint": base + reverse("accounts:api:token"),
                 "userinfo_endpoint": base + reverse("accounts:api:userinfo"),
-                # update as more endpoints/features are added
+                "jwks_uri": base + reverse("accounts:api:jwks"),
                 "response_types_supported": ["code"],
                 "subject_types_supported": ["public"],
                 "id_token_signing_alg_values_supported": ["HS256"],
@@ -353,5 +353,25 @@ class DiscoveryView(APIView):
                 "grant_types_supported": ["authorization_code", "refresh_token"],
                 "token_endpoint_auth_methods_supported": ["client_secret_post"],
                 "code_challenge_methods_supported": ["plain", "S256"],
+            }
+        )
+
+
+class JWKSView(APIView):
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request):
+        # TODO: add RS256 support
+        return Response(
+            {
+                "keys": [
+                    {
+                        "kty": "oct",
+                        "use": "sig",
+                        "alg": "HS256",
+                        "kid": "default",
+                    }
+                ]
             }
         )
