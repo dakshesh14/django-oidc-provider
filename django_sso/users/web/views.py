@@ -40,6 +40,16 @@ class AuthorizeView(View):
         redirect_uri = request.GET.get("redirect_uri")
         state = request.GET.get("state", "")
         scope = request.GET.get("scope", "openid")
+        response_type = request.GET.get("response_type", "code")
+        nonce = request.GET.get("nonce")
+        code_challenge = request.GET.get("code_challenge")
+        code_challenge_method = request.GET.get("code_challenge_method")
+
+        if response_type != "code":
+            return self._error_redirect(redirect_uri, state, "unsupported_response_type")
+
+        if "openid" in scope.split() and not nonce:
+            return self._error_redirect(redirect_uri, state, "invalid_request")
 
         if not client_id or not redirect_uri:
             return self._error_redirect(redirect_uri, state, "invalid_request")
@@ -64,6 +74,9 @@ class AuthorizeView(View):
             "state": state,
             "scope": granted_scopes,
             "timestamp": now().isoformat(),
+            "nonce": nonce,
+            "code_challenge": code_challenge,
+            "code_challenge_method": code_challenge_method,
         }
 
         if not request.user.is_authenticated:
@@ -101,12 +114,23 @@ class AuthorizeView(View):
         redirect_uri = context["redirect_uri"]
         state = context.get("state", "")
         scope = context.get("scope", [])
+        nonce = context.get("nonce")
+        code_challenge = context.get("code_challenge")
+        code_challenge_method = context.get("code_challenge_method")
 
         client = Application.objects.filter(client_id=client_id, is_active=True).first()
         if not client:
             return self._error_redirect(redirect_uri, state, "invalid_client")
 
-        auth_code = create_and_cache_auth_code(request.user, client, redirect_uri, scope)
+        auth_code = create_and_cache_auth_code(
+            request.user,
+            client,
+            redirect_uri,
+            scope,
+            nonce=nonce,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
+        )
         query = urlencode({"code": auth_code, "state": state})
         return redirect(f"{redirect_uri}?{query}")
 

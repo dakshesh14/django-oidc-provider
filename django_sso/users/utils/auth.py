@@ -17,6 +17,9 @@ def create_and_cache_auth_code(
     redirect_uri: str,
     scopes: list[str],
     code_length=40,
+    nonce=None,
+    code_challenge=None,
+    code_challenge_method=None,
 ):
     code = secrets.token_urlsafe(code_length)
 
@@ -27,6 +30,9 @@ def create_and_cache_auth_code(
         "issued_at": now().isoformat(),
         "scopes": scopes,
         "used": False,
+        "nonce": nonce,
+        "code_challenge": code_challenge,
+        "code_challenge_method": code_challenge_method,
     }
 
     cache.set(f"auth_code:{code}", json.dumps(data), timeout=settings.AUTH_CODE_TTL)
