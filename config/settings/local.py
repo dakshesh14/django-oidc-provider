@@ -46,5 +46,3 @@ SERVER_EMAIL = env("SERVER_EMAIL", default="admin@localhost")
 
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-eager-propagates
 CELERY_TASK_EAGER_PROPAGATES = True
-
-CORS_ALLOW_ALL_ORIGINS = True
