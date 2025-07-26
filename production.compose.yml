@@ -91,6 +91,7 @@ services:
       - ./data/certbot/www:/var/www/certbot
     env_file:
       - .envs/.production/.core
+      - .envs/.production/.django
     depends_on:
       - django
       - celeryflower
