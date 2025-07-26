@@ -12,10 +12,18 @@ info:
     3. Use access token to access protected resources
     4. Refresh tokens using `/api/users/token/refresh/`
 
+    ## OIDC Features
+    - ID Token generation for OpenID Connect
+    - Nonce validation for replay attack prevention
+    - PKCE support for public clients
+    - Discovery endpoint for OIDC metadata
+    - JWKS endpoint for public key distribution
+
     ## Standards Compliance
     - RFC 6749 - OAuth 2.0 Authorization Framework
     - RFC 6750 - OAuth 2.0 Bearer Token Usage
     - OpenID Connect Core 1.0
+    - RFC 7636 - PKCE (Proof Key for Code Exchange)
   version: 1.0.0
   contact:
     name: Django OIDC Provider
@@ -35,8 +43,10 @@ paths:
     get:
       summary: OAuth2 Authorization Endpoint
       description: |
-        Initiates the OAuth2 authorization code flow. Redirects user to login if not authenticated,
+        Initiates the OAuth2 authorization code flow with OIDC support. Redirects user to login if not authenticated,
         then returns authorization code to the client's redirect URI.
+
+        Supports PKCE (Proof Key for Code Exchange) for enhanced security.
       parameters:
         - name: client_id
           in: query
@@ -72,6 +82,26 @@ paths:
             enum: [code]
             default: code
           description: Must be "code" for authorization code flow
+        - name: nonce
+          in: query
+          required: false
+          schema:
+            type: string
+          description: OIDC nonce parameter for replay attack prevention (required when openid scope is present)
+        - name: code_challenge
+          in: query
+          required: false
+          schema:
+            type: string
+          description: PKCE code challenge (required for public clients)
+        - name: code_challenge_method
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [S256, plain]
+            default: S256
+          description: PKCE code challenge method (S256 recommended)
       responses:
         "302":
           description: Redirect to client callback URI with authorization code or error
@@ -94,6 +124,9 @@ paths:
       description: |
         Exchanges an authorization code for access and refresh tokens.
         This is part of the OAuth2 authorization code flow.
+
+        When the 'openid' scope is present, an ID token is also returned.
+        PKCE code_verifier validation is performed if code_challenge was used.
       requestBody:
         required: true
         content:
@@ -124,12 +157,16 @@ paths:
                   type: string
                   enum: [authorization_code]
                   description: Must be "authorization_code"
+                code_verifier:
+                  type: string
+                  description: PKCE code verifier (required if code_challenge was used)
             example:
               client_id: "your_client_id"
               client_secret: "your_client_secret"
               code: "auth_code_from_callback"
               redirect_uri: "https://your-app.com/callback"
               grant_type: "authorization_code"
+              code_verifier: "your_code_verifier"
       responses:
         "200":
           description: Token exchange successful
@@ -151,11 +188,15 @@ paths:
                   refresh_token:
                     type: string
                     description: Refresh token for obtaining new access tokens
+                  id_token:
+                    type: string
+                    description: JWT ID token (returned when openid scope is present)
               example:
                 access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 token_type: "bearer"
                 expires_in: 900
                 refresh_token: "random_refresh_token_string"
+                id_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
         "400":
           description: Invalid request or expired/invalid authorization code
           content:
@@ -170,6 +211,10 @@ paths:
                   value:
                     error: "invalid_grant"
                     error_description: "Invalid or expired authorization code"
+                invalid_request:
+                  value:
+                    error: "invalid_request"
+                    error_description: "Missing code_verifier for PKCE"
       tags:
         - OAuth2
 
@@ -345,6 +390,145 @@ paths:
       tags:
         - OAuth2
 
+  /.well-known/openid-configuration:
+    get:
+      summary: OIDC Discovery Endpoint
+      description: |
+        Returns OpenID Connect discovery metadata.
+        This endpoint provides information about the OIDC provider's capabilities and endpoints.
+      responses:
+        "200":
+          description: OIDC discovery metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issuer:
+                    type: string
+                    format: uri
+                    description: The issuer identifier
+                  authorization_endpoint:
+                    type: string
+                    format: uri
+                    description: Authorization endpoint URL
+                  token_endpoint:
+                    type: string
+                    format: uri
+                    description: Token endpoint URL
+                  userinfo_endpoint:
+                    type: string
+                    format: uri
+                    description: UserInfo endpoint URL
+                  jwks_uri:
+                    type: string
+                    format: uri
+                    description: JWKS endpoint URL
+                  response_types_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported response types
+                  subject_types_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported subject types
+                  id_token_signing_alg_values_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported ID token signing algorithms
+                  scopes_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported scopes
+                  claims_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported claims
+                  grant_types_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported grant types
+                  token_endpoint_auth_methods_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported token endpoint authentication methods
+                  code_challenge_methods_supported:
+                    type: array
+                    items:
+                      type: string
+                    description: Supported PKCE code challenge methods
+              example:
+                issuer: "https://your-domain.com"
+                authorization_endpoint: "https://your-domain.com/users/authorize/"
+                token_endpoint: "https://your-domain.com/api/users/token/"
+                userinfo_endpoint: "https://your-domain.com/api/users/userinfo/"
+                jwks_uri: "https://your-domain.com/api/users/jwks/"
+                response_types_supported: ["code"]
+                subject_types_supported: ["public"]
+                id_token_signing_alg_values_supported: ["HS256"]
+                scopes_supported: ["openid", "email", "profile"]
+                claims_supported:
+                  [
+                    "sub",
+                    "email",
+                    "email_verified",
+                    "name",
+                    "given_name",
+                    "family_name",
+                  ]
+                grant_types_supported: ["authorization_code", "refresh_token"]
+                token_endpoint_auth_methods_supported: ["client_secret_post"]
+                code_challenge_methods_supported: ["plain", "S256"]
+      tags:
+        - OpenID Connect
+
+  /api/users/jwks/:
+    get:
+      summary: JWKS Endpoint
+      description: |
+        Returns JSON Web Key Set (JWKS) for JWT validation.
+        Currently supports HS256 signing algorithm.
+      responses:
+        "200":
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kty:
+                          type: string
+                          description: Key type
+                        use:
+                          type: string
+                          description: Key use
+                        alg:
+                          type: string
+                          description: Algorithm
+                        kid:
+                          type: string
+                          description: Key ID
+              example:
+                keys:
+                  - kty: "oct"
+                    use: "sig"
+                    alg: "HS256"
+                    kid: "default"
+      tags:
+        - OpenID Connect
+
 components:
   securitySchemes:
     bearerAuth:
@@ -373,4 +557,4 @@ tags:
   - name: OAuth2
     description: OAuth2 authorization and token management endpoints
   - name: OpenID Connect
-    description: OpenID Connect user information endpoints
+    description: OpenID Connect user information and discovery endpoints
