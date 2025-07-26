@@ -246,6 +246,9 @@ CELERY_TASK_SEND_SENT_EVENT = True
 
 # django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup
 CORS_URLS_REGEX = r"^/api/.*$"
+# TODO: this might not be a good idea
+# perhaps take this as env variable as well?
+CORS_ALLOW_ALL_ORIGINS = True
 
 
 SSO = {
