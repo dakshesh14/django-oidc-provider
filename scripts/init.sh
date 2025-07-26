@@ -47,10 +47,12 @@ read -p "DJANGO_ALLOWED_HOSTS (.example.com,localhost): " ALLOWED_HOSTS
 read -p "DJANGO_SERVER_EMAIL (optional): " DJANGO_SERVER_EMAIL
 read -p "DJANGO_ADMIN_URL (default: admin): " DJANGO_ADMIN_URL
 DJANGO_ADMIN_URL=${DJANGO_ADMIN_URL:-admin}
+[[ "${DJANGO_ADMIN_URL}" != */ ]] && DJANGO_ADMIN_URL="${DJANGO_ADMIN_URL}/"
 
-echo "[Nginx Configuration]"
+echo "[Core Configuration]"
 read -p "DOMAIN (example.com): " DOMAIN
 read -p "EMAIL_FOR_SSL (your-name@example.com): " EMAIL_FOR_SSL
+ISSUER_URL="http://${DOMAIN}"
 
 echo "[Email Configuration]"
 read -p "MAILGUN_API_KEY (key-...): " MAILGUN_API_KEY
@@ -91,7 +93,8 @@ if confirm_overwrite ".envs/.production/.django"; then
     DJANGO_AWS_SECRET_ACCESS_KEY="$DJANGO_AWS_SECRET_ACCESS_KEY" \
     DJANGO_AWS_STORAGE_BUCKET_NAME="$DJANGO_AWS_STORAGE_BUCKET_NAME" \
     CELERY_FLOWER_USER="$CELERY_FLOWER_USER" \
-    CELERY_FLOWER_PASSWORD="$CELERY_FLOWER_PASSWORD"
+    CELERY_FLOWER_PASSWORD="$CELERY_FLOWER_PASSWORD" \
+    SSO_ISSUER_URL="$ISSUER_URL"
 fi
 
 if confirm_overwrite ".envs/.production/.postgres"; then
