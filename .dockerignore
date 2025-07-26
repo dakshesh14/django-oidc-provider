@@ -1,16 +1,66 @@
-.editorconfig
-.gitattributes
-.github
-.gitignore
-.gitlab-ci.yml
-.idea
-.pre-commit-config.yaml
-.readthedocs.yml
-.travis.yml
-venv
-.git
-.envs/
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+*.pot
+*.pyc
+
+# Caches & dist
+.cache/
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+build/
+dist/
+
+# Logs and DBs
+*.log
+*.sqlite3
+
+# Virtualenvs
 .env
-.env.example
+.venv/
+venv/
 env/
+
+# VCS
+.git/
+.gitignore
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime static/media
+media/
+staticfiles/
+static/   # comment this out if you're collecting static during build
+
+# Compose overrides
+dev.compose.yml
+production.compose.yml
+
+# Docs
+docs/
+mkdocs.yml
+
+# Tests
+**/tests/**
+**/test_*.py
+
+# Runtime-only files
 data/
+compose/nginx/
+
+# Scripts not used inside container
+scripts/

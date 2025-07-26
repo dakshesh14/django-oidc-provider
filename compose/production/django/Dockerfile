@@ -1,4 +1,4 @@
-FROM docker.io/python:3.11-slim-bookworm AS python
+FROM python:3.11-slim AS python
 
 FROM python AS python-build-stage
 
@@ -31,17 +31,9 @@ RUN addgroup --system django \
 
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
-  # psycopg dependencies
-  libpq-dev \
-  # Translations dependencies
-  gettext \
-  # entrypoint
-  wait-for-it \
-  # health check
+  libpq5 \
   curl \
-  # cleaning up unused files
-  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # All absolute dir copies ignore workdir instruction. All relative dir copies are wrt to the workdir instruction
 # copy python dependency wheels from python-build-stage
@@ -53,28 +45,15 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/* \
 
 
 COPY --chown=django:django ./compose/production/django/start.sh /start.sh
-RUN sed -i 's/\r$//g' /start.sh
-RUN chmod +x /start.sh
-
-
-COPY --chown=django:django ./compose/production/django/start-celerybeat.sh /start-celerybeat.sh
-RUN sed -i 's/\r$//g' /start-celerybeat.sh
-RUN chmod +x /start-celerybeat.sh
-
-
 COPY --chown=django:django ./compose/production/django/start-celeryworker.sh /start-celeryworker.sh
-RUN sed -i 's/\r$//g' /start-celeryworker.sh
-RUN chmod +x /start-celeryworker.sh
-
-
+COPY --chown=django:django ./compose/production/django/start-celerybeat.sh /start-celerybeat.sh
 COPY --chown=django:django ./compose/production/django/start-celeryflower.sh /start-celeryflower.sh
-RUN sed -i 's/\r$//g' /start-celeryflower.sh
-RUN chmod +x /start-celeryflower.sh
+
+RUN chmod +x /start.sh /start-celeryworker.sh /start-celerybeat.sh /start-celeryflower.sh \
+    && sed -i 's/\r$//g' /start.sh /start-celeryworker.sh /start-celerybeat.sh /start-celeryflower.sh
 
 
 COPY --chown=django:django . ${APP_HOME}
-
-RUN chown -R django:django ${APP_HOME}
 
 USER django
 
