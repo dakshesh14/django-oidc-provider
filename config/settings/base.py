@@ -249,6 +249,8 @@ SSO = {
     ),
     "ACCESS_TOKEN_EXPIRATION": timedelta(minutes=15),
     "REFRESH_TOKEN_EXPIRATION": timedelta(days=30),
+    "ISSUER_URL": env("SSO_ISSUER_URL", default="http://localhost:8000"),
+    "ID_TOKEN_EXPIRATION": timedelta(minutes=15),
 }
 
 # Django Crispy Forms

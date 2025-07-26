@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import json
 import secrets
 
@@ -9,6 +11,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from django.core.cache import cache
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils.timezone import now
 
 # rest framework
@@ -44,7 +47,11 @@ class TokenView(APIView):
         client_secret = data["client_secret"]
         code = data["code"]
         redirect_uri = data["redirect_uri"]
-        grant_type = data["grant_type"]  # noqa
+        grant_type = data["grant_type"]
+        code_verifier = request.data.get("code_verifier")
+
+        if grant_type != "authorization_code":
+            return Response({"error": "unsupported_grant_type"}, status=status.HTTP_400_BAD_REQUEST)
 
         client = Application.objects.filter(client_id=client_id).first()
         if not client or not check_password(client_secret, client.client_secret):
@@ -71,22 +78,72 @@ class TokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        code_data["used"] = True
+        pkce_error = self._validate_pkce(code_data, code_verifier)
+        if pkce_error:
+            return pkce_error
+
+        # code_data["used"] = True
         cache.set(f"auth_code:{code}", json.dumps(code_data), timeout=60)
 
         user = User.objects.get(id=code_data["user_id"])
+        scopes = code_data["scopes"]
+        nonce = code_data.get("nonce")
 
         access_token = self._generate_access_token(user, client, code_data)
         refresh_token = self._generate_refresh_token(user, client, code_data)
+        response = {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": int(settings.SSO.get("ACCESS_TOKEN_EXPIRATION").total_seconds()),
+            "refresh_token": refresh_token,
+        }
+        if "openid" in scopes:
+            id_token = self._generate_id_token(user, client, nonce)
+            response["id_token"] = id_token
+        return Response(response)
 
-        return Response(
-            {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "expires_in": int(settings.SSO.get("ACCESS_TOKEN_EXPIRATION").total_seconds()),
-                "refresh_token": refresh_token,
-            }
-        )
+    def _validate_pkce(self, code_data, code_verifier):
+        """Validate PKCE code_verifier against stored code_challenge."""
+        code_challenge = code_data.get("code_challenge")
+        code_challenge_method = code_data.get("code_challenge_method")
+
+        if not code_challenge:
+            return None
+
+        if not code_verifier:
+            return Response(
+                {"error": "invalid_request", "error_description": "Missing code_verifier for PKCE"}, status=400
+            )
+
+        if code_challenge_method == "S256":
+            expected = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).decode().rstrip("=")
+            if expected != code_challenge:
+                return Response(
+                    {"error": "invalid_grant", "error_description": "Invalid code_verifier (S256)"}, status=400
+                )
+        elif code_challenge_method == "plain":
+            if code_verifier != code_challenge:
+                return Response(
+                    {"error": "invalid_grant", "error_description": "Invalid code_verifier (plain)"}, status=400
+                )
+        else:
+            return Response(
+                {"error": "invalid_request", "error_description": "Unsupported code_challenge_method"}, status=400
+            )
+
+        return None
+
+    def _generate_id_token(self, user, client, nonce):
+        payload = {
+            "iss": settings.SSO.get("ISSUER_URL", "http://localhost:8000"),
+            "sub": str(user.id),
+            "aud": client.client_id,
+            "iat": int(now().timestamp()),
+            "exp": int((now() + settings.SSO.get("ID_TOKEN_EXPIRATION")).timestamp()),
+        }
+        if nonce:
+            payload["nonce"] = nonce
+        return jwt.encode(payload, settings.SSO.get("JWT_SECRET_KEY"), algorithm="HS256")
 
     def _generate_access_token(self, user, client, code_data):
         payload = {
@@ -272,3 +329,29 @@ class LogoutView(APIView):
         if auth_header.startswith("Bearer "):
             return auth_header.split("Bearer ")[1]
         return None
+
+
+class DiscoveryView(APIView):
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request):
+        issuer = settings.SSO.get("ISSUER_URL", request.build_absolute_uri("/"))
+        base = issuer.rstrip("/")
+        return Response(
+            {
+                "issuer": issuer,
+                "authorization_endpoint": base + reverse("accounts:web:authorize"),
+                "token_endpoint": base + reverse("accounts:api:token"),
+                "userinfo_endpoint": base + reverse("accounts:api:userinfo"),
+                # update as more endpoints/features are added
+                "response_types_supported": ["code"],
+                "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["HS256"],
+                "scopes_supported": ["openid", "email", "profile"],
+                "claims_supported": ["sub", "email", "email_verified", "name", "given_name", "family_name"],
+                "grant_types_supported": ["authorization_code", "refresh_token"],
+                "token_endpoint_auth_methods_supported": ["client_secret_post"],
+                "code_challenge_methods_supported": ["plain", "S256"],
+            }
+        )

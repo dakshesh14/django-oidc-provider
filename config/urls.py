@@ -4,8 +4,11 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views import defaults as default_views
 
+from django_sso.users.api.views import DiscoveryView
+
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
+    path(".well-known/openid-configuration", DiscoveryView.as_view(), name="oidc_discovery"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # API URLS

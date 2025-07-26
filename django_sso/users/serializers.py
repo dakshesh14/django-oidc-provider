@@ -12,3 +12,4 @@ class TokenRequestSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=256)
     redirect_uri = serializers.URLField()
     grant_type = serializers.ChoiceField(choices=[("authorization_code", "authorization_code")])
+    code_verifier = serializers.CharField(max_length=256, required=False)
