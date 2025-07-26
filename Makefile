@@ -1,5 +1,4 @@
 INIT_SCRIPT=scripts/init.sh
-PLAIN_INIT_SCRIPT=scripts/init-plain.sh
 RENDER_SCRIPT=scripts/render_template.sh
 DEPLOYMENT_SCRIPT=scripts/deployment.sh
 MIGRATE_SCRIPT=scripts/migrate.sh
@@ -25,11 +24,6 @@ help:
 .PHONY: init
 init:
 	@bash $(INIT_SCRIPT)
-
-
-.PHONY: init-plain
-init-plain:
-	@bash $(PLAIN_INIT_SCRIPT)
 
 
 .PHONY: render
