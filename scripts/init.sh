@@ -47,7 +47,6 @@ read -p "DJANGO_ALLOWED_HOSTS (.example.com,localhost): " ALLOWED_HOSTS
 read -p "DJANGO_SERVER_EMAIL (optional): " DJANGO_SERVER_EMAIL
 read -p "DJANGO_ADMIN_URL (default: admin): " DJANGO_ADMIN_URL
 DJANGO_ADMIN_URL=${DJANGO_ADMIN_URL:-admin}
-[[ "${DJANGO_ADMIN_URL}" != */ ]] && DJANGO_ADMIN_URL="${DJANGO_ADMIN_URL}/"
 
 echo "[Core Configuration]"
 read -p "DOMAIN (example.com): " DOMAIN
