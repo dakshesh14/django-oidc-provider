@@ -165,6 +165,9 @@ class ResumeAuthorizationView(LoginRequiredMixin, View):
         redirect_uri = oidc_context.get("redirect_uri")
         state = oidc_context.get("state", "")
         scope = oidc_context.get("scope", [])
+        nonce = oidc_context.get("nonce", [])
+        code_challenge = oidc_context.get("code_challenge", [])
+        code_challenge_method = oidc_context.get("code_challenge_method", [])
 
         authorizer_url = reverse("accounts:web:authorize")
         query_params = {
@@ -172,6 +175,9 @@ class ResumeAuthorizationView(LoginRequiredMixin, View):
             "redirect_uri": redirect_uri,
             "state": state,
             "scope": " ".join(scope),
+            "nonce": nonce,
+            "code_challenge": code_challenge,
+            "code_challenge_method": code_challenge_method,
         }
         authorizer_url += f"?{urlencode(query_params)}"
         return redirect(authorizer_url)
