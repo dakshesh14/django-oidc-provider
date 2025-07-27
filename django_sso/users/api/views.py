@@ -122,7 +122,6 @@ class TokenView(APIView):
                 .rstrip(b"=")
                 .decode("ascii")
             )
-            print(expected, code_verifier)
             if expected != code_challenge:
                 return Response(
                     {"error": "invalid_grant", "error_description": "Invalid code_verifier (S256)"}, status=400
