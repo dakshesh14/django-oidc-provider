@@ -77,8 +77,8 @@ class TokenView(APIView):
                 {"error": "invalid_grant", "error_description": "Code already used"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        code_data["used"] = True
+        else:
+            code_data["used"] = True
 
         pkce_error = self._validate_pkce(code_data, code_verifier)
         if pkce_error:
