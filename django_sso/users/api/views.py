@@ -78,11 +78,12 @@ class TokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        code_data["used"] = True
+
         pkce_error = self._validate_pkce(code_data, code_verifier)
         if pkce_error:
             return pkce_error
 
-        # code_data["used"] = True
         cache.set(f"auth_code:{code}", json.dumps(code_data), timeout=60)
 
         user = User.objects.get(id=code_data["user_id"])
@@ -116,7 +117,12 @@ class TokenView(APIView):
             )
 
         if code_challenge_method == "S256":
-            expected = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).decode().rstrip("=")
+            expected = (
+                base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
+                .rstrip(b"=")
+                .decode("ascii")
+            )
+            print(expected, code_verifier)
             if expected != code_challenge:
                 return Response(
                     {"error": "invalid_grant", "error_description": "Invalid code_verifier (S256)"}, status=400
