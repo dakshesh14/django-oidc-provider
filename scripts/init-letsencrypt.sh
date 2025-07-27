@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
 
-# SSL Certificate Initialization Script for Django OIDC Provider (Gum UI)
+# SSL Certificate Initialization Script for Django OIDC Provider (No Gum)
 set -euo pipefail
 
 # ------------------------------------------------------------------------------
 #  ENVIRONMENT CHECK
 # ------------------------------------------------------------------------------
-if ! command -v gum &> /dev/null; then
-  echo "❌ Gum is not installed. Install it from:"
-  echo "   https://github.com/charmbracelet/gum#installation"
-  exit 1
-fi
-
 ENV_FILE=".envs/.production/.core"
 
 if [ ! -f "$ENV_FILE" ]; then
-  gum style --foreground 1 --bold "❌ $ENV_FILE not found!"
-  gum style "Run 'make init' to generate environment files."
+  echo -e "\033[0;31m❌ $ENV_FILE not found!\033[0m"
+  echo "Run 'make init' to generate environment files."
   exit 1
 fi
 
@@ -24,23 +18,23 @@ fi
 export $(grep -v '^#' "$ENV_FILE" | grep -E '^(DOMAIN|EMAIL_FOR_SSL)=' | xargs)
 
 if [ -z "${DOMAIN:-}" ]; then
-  gum style --foreground 1 "❌ DOMAIN not set in $ENV_FILE"
-  gum style "Set: DOMAIN=yourdomain.com"
+  echo -e "\033[0;31m❌ DOMAIN not set in $ENV_FILE\033[0m"
+  echo "Set: DOMAIN=yourdomain.com"
   exit 1
 fi
 
 if [ -z "${EMAIL_FOR_SSL:-}" ]; then
-  gum style --foreground 1 "❌ EMAIL_FOR_SSL not set in $ENV_FILE"
-  gum style "Set: EMAIL_FOR_SSL=admin@yourdomain.com"
+  echo -e "\033[0;31m❌ EMAIL_FOR_SSL not set in $ENV_FILE\033[0m"
+  echo "Set: EMAIL_FOR_SSL=admin@yourdomain.com"
   exit 1
 fi
 
-gum style --foreground 36 --bold "🔒 Initializing Let's Encrypt SSL certificates for $DOMAIN"
+echo -e "\033[1;36m🔒 Initializing Let's Encrypt SSL certificates for $DOMAIN\033[0m"
 
 # ------------------------------------------------------------------------------
 #  CREATE CERT DIRECTORIES
 # ------------------------------------------------------------------------------
-gum style --foreground 3 "📁 Creating certbot directories..."
+echo -e "\033[1;33m📁 Creating certbot directories...\033[0m"
 mkdir -p "./data/certbot/conf"
 mkdir -p "./data/certbot/www"
 
@@ -48,14 +42,15 @@ mkdir -p "./data/certbot/www"
 #  CHECK EXISTING CERTS
 # ------------------------------------------------------------------------------
 if [ -d "./data/certbot/conf/live/$DOMAIN" ]; then
-  gum style --foreground 3 "⚠️  Certificates already exist for $DOMAIN"
+  echo -e "\033[1;33m⚠️  Certificates already exist for $DOMAIN\033[0m"
 
-  if ! gum confirm "Recreate certificates?"; then
-    gum style --foreground 2 "✅ Keeping existing certificates."
+  read -p "Recreate certificates? (y/N): " confirm
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo -e "\033[0;32m✅ Keeping existing certificates.\033[0m"
     exit 0
   fi
 
-  gum style --foreground 3 "🗑️  Removing existing certificates..."
+  echo -e "\033[1;33m🗑️  Removing existing certificates...\033[0m"
   docker compose -f production.compose.yml run --rm --entrypoint "\
     rm -rf /etc/letsencrypt/live/$DOMAIN && \
     rm -rf /etc/letsencrypt/archive/$DOMAIN && \
@@ -65,7 +60,7 @@ fi
 # ------------------------------------------------------------------------------
 #  TEMPORARY NGINX FOR ACME CHALLENGE
 # ------------------------------------------------------------------------------
-gum style --foreground 3 "🌐 Starting temporary nginx on port 80 for ACME challenge..."
+echo -e "\033[1;33m🌐 Starting temporary nginx on port 80 for ACME challenge...\033[0m"
 
 cat > /tmp/nginx-init.conf <<EOF
 server {
@@ -93,20 +88,20 @@ docker run --rm -d --name nginx-init \
   -v "$(pwd)/data/certbot/www:/var/www/certbot" \
   nginx:1.25
 
-gum style --foreground 3 "📋 Verifying domain accessibility..."
+echo -e "\033[1;33m📋 Verifying domain accessibility...\033[0m"
 sleep 5
 
 if ! curl -fs "http://$DOMAIN/.well-known/acme-challenge/test" > /dev/null 2>&1; then
-  gum style --foreground 1 "❌ Domain $DOMAIN is not accessible via HTTP."
-  gum style "Check:"
-  gum style "1. DNS points to this server"
-  gum style "2. Port 80 is open"
-  gum style "3. No other service is using port 80"
+  echo -e "\033[0;31m❌ Domain $DOMAIN is not accessible via HTTP.\033[0m"
+  echo "Check:"
+  echo "1. DNS points to this server"
+  echo "2. Port 80 is open"
+  echo "3. No other service is using port 80"
   docker stop nginx-init
   exit 1
 fi
 
-gum style --foreground 2 "✅ Domain is accessible. Requesting cert via certbot..."
+echo -e "\033[0;32m✅ Domain is accessible. Requesting cert via certbot...\033[0m"
 
 # ------------------------------------------------------------------------------
 #  CERTBOT REQUEST
@@ -127,17 +122,17 @@ docker stop nginx-init
 #  VALIDATE SUCCESS
 # ------------------------------------------------------------------------------
 if [ -d "./data/certbot/conf/live/$DOMAIN" ]; then
-  gum style --foreground 2 --border normal --padding "1" "🎉 SSL certificates created!"
-  gum style --foreground 6 "📁 Location: ./data/certbot/conf/live/$DOMAIN"
+  echo -e "\033[1;32m🎉 SSL certificates created!\033[0m"
+  echo -e "\033[0;36m📁 Location: ./data/certbot/conf/live/$DOMAIN\033[0m"
 
-  gum style --foreground 3 "📝 Updating production.compose.yml volumes..."
+  echo -e "\033[1;33m📝 Updating production.compose.yml volumes...\033[0m"
   sed -i 's|certbot_conf:/etc/letsencrypt|./data/certbot/conf:/etc/letsencrypt|g' production.compose.yml
   sed -i 's|certbot_www:/var/www/certbot|./data/certbot/www:/var/www/certbot|g' production.compose.yml
 
-  gum style --foreground 2 "✅ SSL setup complete. Run: make deploy"
-  gum style --foreground 4 "🔄 Auto-renewal is configured (12h cycle)."
+  echo -e "\033[0;32m✅ SSL setup complete. Run: make deploy\033[0m"
+  echo -e "\033[0;34m🔄 Auto-renewal is configured (12h cycle).\033[0m"
 else
-  gum style --foreground 1 --bold "❌ Certificate creation failed."
-  gum style "Review the output above and try again."
+  echo -e "\033[0;31m❌ Certificate creation failed.\033[0m"
+  echo "Review the output above and try again."
   exit 1
 fi

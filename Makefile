@@ -12,7 +12,6 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  init         Run the interactive init script using gum"
-	@echo "  init-plain   Run the plain init script (no gum)"
 	@echo "  render       Run template rendering directly"
 	@echo "  init-ssl     Initialize SSL certificates with Let's Encrypt"
 	@echo "  deploy       Deploy the application using Docker Compose"
